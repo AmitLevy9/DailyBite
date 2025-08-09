@@ -46,13 +46,20 @@ class FeedFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // יוצר אדפטר שמעביר אירוע לייק חזרה לפרגמנט
-        adapter = PostAdapter(storage) { postId ->
-            val uid = authRepo.currentUidOrNull() ?: return@PostAdapter
-            viewLifecycleOwner.lifecycleScope.launch {
-                postsRepo.like(postId, uid)
-                // אין צורך לרענן - feedFlow יעדכן את הרשימה אוטומטית
+        adapter = PostAdapter(
+            storage = storage,
+            onLike = { postId ->
+                val uid = authRepo.currentUidOrNull() ?: return@PostAdapter
+                viewLifecycleOwner.lifecycleScope.launch { postsRepo.like(postId, uid) }
+            },
+            onLongPress = { _, _ -> /* אופציונלי למחיקה בפיד */ },
+            onComments = { postId ->
+                findNavController().navigate(
+                    R.id.action_feed_to_postComments,
+                    android.os.Bundle().apply { putString("postId", postId) }
+                )
             }
-        }
+        )
 
         binding.rvPosts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPosts.adapter = adapter

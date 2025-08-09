@@ -8,6 +8,7 @@ import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -142,4 +143,41 @@ class PostRepository @Inject constructor(
         // val items = firestore.collection("feedback").document(postId).collection("items").get().await()
         // items.documents.forEach { it.reference.delete().await() }
     }
+
+    suspend fun addComment(postId: String, userUid: String, text: String): Result<Unit> = runCatching {
+        val ref = firestore.collection("feedback").document(postId).collection("items").document()
+        val payload = mapOf(
+            "id" to ref.id,
+            "postId" to postId,
+            "authorUid" to userUid,
+            "type" to "comment",
+            "text" to text,
+            "createdAt" to System.currentTimeMillis()
+        )
+        ref.set(payload).await()
+    }
+
+    fun commentsFlow(postId: String): Flow<List<CommentItem>> = callbackFlow {
+        val reg: ListenerRegistration = firestore.collection("feedback").document(postId)
+            .collection("items")
+            .whereEqualTo("type", "comment")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .addSnapshotListener { snap, err ->
+                if (err != null) {
+                    trySend(emptyList()).isSuccess; return@addSnapshotListener
+                }
+                val list = snap?.documents?.mapNotNull { d ->
+                    CommentItem(
+                        id = d.getString("id") ?: d.id,
+                        postId = d.getString("postId") ?: return@mapNotNull null,
+                        authorUid = d.getString("authorUid") ?: "",
+                        text = d.getString("text") ?: "",
+                        createdAt = d.getLong("createdAt") ?: 0L
+                    )
+                } ?: emptyList()
+                trySend(list).isSuccess
+            }
+        awaitClose { reg.remove() }
+    }
+
 }

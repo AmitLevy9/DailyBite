@@ -23,7 +23,19 @@
         <action
             android:id="@+id/action_feed_to_myPosts"
             app:destination="@id/myPostsFragment" />
+        <action
+            android:id="@+id/action_feed_to_postComments"
+            app:destination="@id/postCommentsFragment" >
+            <argument
+                android:name="postId"
+                app:argType="string" />
+        </action>
     </fragment>
+
+    <fragment
+        android:id="@+id/postCommentsFragment"
+        android:name="com.example.dailybite.ui.comments.PostCommentsFragment"
+        android:label="תגובות" />
 
     <fragment
         android:id="@+id/newPostFragment"
