@@ -7,4 +7,6 @@
     <string name="auth_register">הרשמה</string>
     <string name="auth_forgot">שכחת סיסמה?</string>
     <string name="auth_guest">המשך כאורח</string>
+    <string name="logout">התנתקות</string>
+    <string name="profile">פרופיל</string>
 </resources>

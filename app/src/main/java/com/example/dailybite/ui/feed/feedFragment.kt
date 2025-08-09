@@ -1,18 +1,17 @@
 package com.example.dailybite.ui.feed
 
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.dailybite.R
-import com.example.dailybite.databinding.FragmentFeedBinding
 import com.example.dailybite.data.auth.AuthRepository
 import com.example.dailybite.data.post.PostRepository
+import com.example.dailybite.databinding.FragmentFeedBinding
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
@@ -33,6 +32,12 @@ class FeedFragment : Fragment() {
 
     private lateinit var adapter: PostAdapter
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // הפעלת תמיכה בתפריט
+        setHasOptionsMenu(true)
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -45,30 +50,35 @@ class FeedFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // יוצר אדפטר שמעביר אירוע לייק חזרה לפרגמנט
+        // הגדרת האדפטר לפוסטים
         adapter = PostAdapter(
             storage = storage,
             onLike = { postId ->
                 val uid = authRepo.currentUidOrNull() ?: run {
-                    android.widget.Toast.makeText(requireContext(), "צריך להתחבר כדי לעשות לייק", android.widget.Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "צריך להתחבר כדי לעשות לייק", Toast.LENGTH_SHORT).show()
                     return@PostAdapter
                 }
                 viewLifecycleOwner.lifecycleScope.launch {
                     val res = postsRepo.like(postId, uid)
                     if (res.isFailure) {
-                        android.widget.Toast.makeText(requireContext(), "הלייק נכשל", android.widget.Toast.LENGTH_SHORT).show()
+                        Toast.makeText(requireContext(), "הלייק נכשל", Toast.LENGTH_SHORT).show()
                     }
                 }
             },
-            onLongPress = { _, _ -> /* אופציונלי במחיקה בפיד הכללי */ },
+            onLongPress = { _, _ -> /* מחיקה בפיד הכללי לא חובה */ },
             onComments = { postId ->
                 findNavController().navigate(
                     R.id.action_feed_to_postComments,
-                    android.os.Bundle().apply { putString("postId", postId) }
+                    Bundle().apply { putString("postId", postId) }
                 )
             }
         )
 
+        // חיבור האדפטר ל־RecyclerView
+        binding.rvPosts.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvPosts.adapter = adapter
+
+        // האזנה לשינויים ב־ViewModel
         viewLifecycleOwner.lifecycleScope.launchWhenStarted {
             vm.state.collectLatest { s ->
                 binding.tvEmpty.visibility = if (s.items.isEmpty()) View.VISIBLE else View.GONE
@@ -77,22 +87,41 @@ class FeedFragment : Fragment() {
             }
         }
 
-        binding.rvPosts.layoutManager = LinearLayoutManager(requireContext())
-        binding.rvPosts.adapter = adapter
-
+        // כפתור יצירת פוסט חדש
         binding.fabNewPost.setOnClickListener {
             findNavController().navigate(R.id.action_feed_to_newPost)
         }
 
+        // כפתור "הפוסטים שלי"
         binding.btnMyPosts.setOnClickListener {
             findNavController().navigate(R.id.action_feed_to_myPosts)
         }
 
-        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-            vm.state.collectLatest { s ->
-                binding.tvEmpty.visibility = if (s.items.isEmpty()) View.VISIBLE else View.GONE
-                adapter.submitList(s.items)
+        // כפתור מעבר לפרופיל
+        binding.btnProfile.setOnClickListener {
+            findNavController().navigate(R.id.action_feed_to_profile)
+        }
+    }
+
+    // טעינת התפריט העליון
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.main_menu, menu)
+        super.onCreateOptionsMenu(menu, inflater)
+    }
+
+    // טיפול בלחיצה על אייטמים בתפריט
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_logout -> {
+                authRepo.signOut()
+                findNavController().navigate(R.id.action_feed_to_login)
+                true
             }
+            R.id.profileFragment -> {
+                findNavController().navigate(R.id.action_feed_to_profile)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 
