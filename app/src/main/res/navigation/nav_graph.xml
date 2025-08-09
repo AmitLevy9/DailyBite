@@ -38,6 +38,9 @@
         <action
             android:id="@+id/action_feed_to_profile"
             app:destination="@id/profileFragment" />
+        <action
+            android:id="@+id/action_feed_to_login"
+            app:destination="@id/authFragment" />
     </fragment>
 
     <!-- יצירת פוסט -->

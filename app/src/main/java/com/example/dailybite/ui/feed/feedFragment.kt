@@ -105,7 +105,7 @@ class FeedFragment : Fragment() {
 
     // טעינת התפריט העליון
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        inflater.inflate(R.menu.main_menu, menu)
+        inflater.inflate(R.menu.menu_feed, menu)
         super.onCreateOptionsMenu(menu, inflater)
     }
 
