@@ -49,10 +49,18 @@ class FeedFragment : Fragment() {
         adapter = PostAdapter(
             storage = storage,
             onLike = { postId ->
-                val uid = authRepo.currentUidOrNull() ?: return@PostAdapter
-                viewLifecycleOwner.lifecycleScope.launch { postsRepo.like(postId, uid) }
+                val uid = authRepo.currentUidOrNull() ?: run {
+                    android.widget.Toast.makeText(requireContext(), "צריך להתחבר כדי לעשות לייק", android.widget.Toast.LENGTH_SHORT).show()
+                    return@PostAdapter
+                }
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val res = postsRepo.like(postId, uid)
+                    if (res.isFailure) {
+                        android.widget.Toast.makeText(requireContext(), "הלייק נכשל", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
             },
-            onLongPress = { _, _ -> /* אופציונלי למחיקה בפיד */ },
+            onLongPress = { _, _ -> /* אופציונלי במחיקה בפיד הכללי */ },
             onComments = { postId ->
                 findNavController().navigate(
                     R.id.action_feed_to_postComments,
@@ -60,6 +68,14 @@ class FeedFragment : Fragment() {
                 )
             }
         )
+
+        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
+            vm.state.collectLatest { s ->
+                binding.tvEmpty.visibility = if (s.items.isEmpty()) View.VISIBLE else View.GONE
+                binding.tvEmpty.text = "הפיד ריק כרגע. לחצי על ה־FAB כדי לפרסם פוסט ראשון."
+                adapter.submitList(s.items)
+            }
+        }
 
         binding.rvPosts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPosts.adapter = adapter

@@ -179,5 +179,38 @@ class PostRepository @Inject constructor(
             }
         awaitClose { reg.remove() }
     }
+    // קריאת פוסט יחיד (למקרה שנרצה למשוך מהשרת)
+    suspend fun getPost(postId: String): Result<PostItem> = runCatching {
+        val doc = firestore.collection("posts").document(postId).get().await()
+        val id = doc.getString("id") ?: doc.id
+        val ownerUid = doc.getString("ownerUid") ?: error("ownerUid missing")
+        val mealType = doc.getString("mealType") ?: ""
+        val description = doc.getString("description") ?: ""
+        val path = doc.getString("imageStoragePath") ?: ""
+        val createdAt = doc.getLong("createdAt") ?: 0L
+        val likesCount = (doc.getLong("likesCount") ?: 0L).toInt()
+        PostItem(id, ownerUid, mealType, description, path, createdAt, likesCount)
+    }
+
+    // עדכון פוסט: שינוי תיאור/סוג ארוחה + אופציה להחלפת תמונה
+    suspend fun updatePost(
+        postId: String,
+        mealType: String,
+        description: String,
+        imageStoragePath: String,
+        newImageBytes: ByteArray? // null = בלי שינוי תמונה
+    ): Result<Unit> = runCatching {
+        if (newImageBytes != null) {
+            // נעלה על אותו path כדי לא לשבור קישורים
+            storage.reference.child(imageStoragePath).putBytes(newImageBytes).await()
+        }
+        firestore.collection("posts").document(postId).update(
+            mapOf(
+                "mealType" to mealType,
+                "description" to description,
+                "updatedAt" to System.currentTimeMillis()
+            )
+        ).await()
+    }
 
 }

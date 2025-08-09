@@ -59,16 +59,6 @@ class NewPostFragment : Fragment() {
             }
         }
 
-        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-            vm.state.collectLatest { s ->
-                binding.progress.isVisible = s.loading
-                binding.btnPublish.isEnabled = !s.loading
-                if (s.successId != null) {
-                    findNavController().popBackStack() // חזרה לפיד אחרי פרסום
-                }
-                // אפשר להציג הודעת שגיאה מ-s.error אם צריך
-            }
-        }
     }
 
     override fun onDestroyView() {

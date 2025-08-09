@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">DailyBite</string>
+    <string name="auth_title">ברוכים הבאים ל־DailyBite</string>
+    <string name="auth_email_hint">אימייל</string>
+    <string name="auth_password_hint">סיסמה</string>
+    <string name="auth_login">כניסה</string>
+    <string name="auth_register">הרשמה</string>
+    <string name="auth_forgot">שכחת סיסמה?</string>
+    <string name="auth_guest">המשך כאורח</string>
 </resources>

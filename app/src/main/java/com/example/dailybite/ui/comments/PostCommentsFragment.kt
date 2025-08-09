@@ -49,16 +49,19 @@ class PostCommentsFragment : Fragment() {
             binding.btnSend.isEnabled = !it.isNullOrBlank()
         }
 
+        // ui/comments/PostCommentsFragment.kt
         binding.btnSend.setOnClickListener {
             val text = binding.etComment.text?.toString()?.trim().orEmpty()
             if (text.isEmpty()) return@setOnClickListener
+            binding.btnSend.isEnabled = false
             viewLifecycleOwner.lifecycleScope.launch {
                 val res = vm.send(postId, text)
+                binding.btnSend.isEnabled = true
                 if (res.isSuccess) {
                     binding.etComment.setText("")
-                    binding.rvComments.scrollToPosition(adapter.itemCount - 1)
+                    binding.rvComments.scrollToPosition(maxOf(0, adapter.itemCount - 1))
                 } else {
-                    // אופציונלי: Toast עם s.error
+                    android.widget.Toast.makeText(requireContext(), "שליחת תגובה נכשלה", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }

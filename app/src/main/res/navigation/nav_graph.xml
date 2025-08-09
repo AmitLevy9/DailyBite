@@ -30,6 +30,7 @@
                 android:name="postId"
                 app:argType="string" />
         </action>
+
     </fragment>
 
     <fragment
@@ -46,5 +47,23 @@
         android:id="@+id/myPostsFragment"
         android:name="com.example.dailybite.ui.myposts.MyPostsFragment"
         android:label="MyPosts" />
+
+    <fragment
+        android:id="@+id/postEditFragment"
+        android:name="com.example.dailybite.ui.post.EditPostFragment"
+        android:label="עריכת פוסט">
+        <argument
+            android:name="postId"
+            app:argType="string" />
+        <argument
+            android:name="imageStoragePath"
+            app:argType="string" />
+        <argument
+            android:name="mealType"
+            app:argType="string" />
+        <argument
+            android:name="description"
+            app:argType="string" />
+    </fragment>
 
 </navigation>

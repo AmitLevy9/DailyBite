@@ -14,6 +14,8 @@ import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import javax.inject.Inject
+import com.example.dailybite.R
+import androidx.navigation.fragment.findNavController
 
 @AndroidEntryPoint
 class MyPostsFragment : Fragment() {
@@ -31,6 +33,8 @@ class MyPostsFragment : Fragment() {
         return binding.root
     }
 
+    @Inject lateinit var repo: com.example.dailybite.data.post.PostRepository
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -39,23 +43,42 @@ class MyPostsFragment : Fragment() {
         val id = resources.getIdentifier("btnMyPosts", "id", requireContext().packageName)
         if (id != 0) binding.root.findViewById<View>(id)?.visibility = View.GONE
 
+
         adapter = PostAdapter(
             storage = storage,
-            onLike = { /* לא קריטי במסך זה, אפשר להשאיר ריק */ },
+            onLike = { /* לא חובה במסך זה */ },
             onLongPress = { postId, imagePath ->
+                val item = vm.state.value.items.firstOrNull { it.id == postId } ?: return@PostAdapter
                 androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                    .setTitle("מחיקת פוסט")
-                    .setMessage("למחוק את הפוסט לצמיתות?")
-                    .setPositiveButton("מחק") { _, _ ->
-                        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-                            val res = repo.deletePost(postId, imagePath)
-                            // פידבק קל למשתמש
-                            val msg = if (res.isSuccess) "הפוסט נמחק" else "מחיקה נכשלה"
-                            android.widget.Toast.makeText(requireContext(), msg, android.widget.Toast.LENGTH_SHORT).show()
-                            // אין צורך לרענן - ה־Flow יעדכן את הרשימה אוטומטית
+                    .setTitle("פעולה על פוסט")
+                    .setItems(arrayOf("ערוך","מחק")) { _, which ->
+                        when (which) {
+                            0 -> { // ערוך
+                                val args = android.os.Bundle().apply {
+                                    putString("postId", postId)
+                                    putString("imageStoragePath", imagePath)
+                                    putString("mealType", item.mealType)
+                                    putString("description", item.description)
+                                }
+                                this@MyPostsFragment.findNavController()
+                                    .navigate(R.id.postEditFragment, args)
+                            }
+                            1 -> { // מחק
+                                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                                    .setTitle("מחיקת פוסט")
+                                    .setMessage("למחוק את הפוסט לצמיתות?")
+                                    .setPositiveButton("מחק") { _, _ ->
+                                        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
+                                            val res = repo.deletePost(postId, imagePath)
+                                            val msg = if (res.isSuccess) "הפוסט נמחק" else "מחיקה נכשלה"
+                                            android.widget.Toast.makeText(requireContext(), msg, android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                    .setNegativeButton("בטל", null)
+                                    .show()
+                            }
                         }
                     }
-                    .setNegativeButton("בטל", null)
                     .show()
             }
         )
@@ -75,5 +98,5 @@ class MyPostsFragment : Fragment() {
         _binding = null
     }
 
-    @Inject lateinit var repo: com.example.dailybite.data.post.PostRepository
+
 }
