@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "607493655576",
+    "project_id": "dailybite-4b1fa",
+    "storage_bucket": "dailybite-4b1fa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:607493655576:android:13f51d9869301e8ba0c76d",
+        "android_client_info": {
+          "package_name": "com.example.dailybite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjcAU1TAaQpXD2TiBarkyvaQ_xCZRd6JQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
