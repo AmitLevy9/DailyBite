@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
     app:startDestination="@id/authFragment">
 
@@ -57,10 +58,6 @@
         <action
             android:id="@+id/action_myPosts_to_postEdit"
             app:destination="@id/postEditFragment" >
-            <argument android:name="postId" app:argType="string" />
-            <argument android:name="imageStoragePath" app:argType="string" />
-            <argument android:name="mealType" app:argType="string" />
-            <argument android:name="description" app:argType="string" />
         </action>
     </fragment>
 

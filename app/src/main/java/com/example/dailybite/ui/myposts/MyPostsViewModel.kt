@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.dailybite.data.auth.AuthRepository
 import com.example.dailybite.data.post.PostItem
 import com.example.dailybite.data.post.PostRepository
+import com.google.firebase.firestore.ListenerRegistration
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -20,14 +21,34 @@ data class MyPostsUiState(
 
 @HiltViewModel
 class MyPostsViewModel @Inject constructor(
-    auth: AuthRepository,
-    repo: PostRepository
+    private val repo: PostRepository,
+    private val authRepo: AuthRepository
 ) : ViewModel() {
 
-    private val uid = auth.currentUidOrNull()
+    private var syncReg: ListenerRegistration? = null
+    private val uid: String? = authRepo.currentUidOrNull()
 
     val state: StateFlow<MyPostsUiState> =
-        (uid?.let { repo.myPostsFlow(it) } ?: flowOf(emptyList()))
-            .map { MyPostsUiState(loading = false, items = it) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MyPostsUiState())
+        if (uid.isNullOrEmpty()) {
+            // ללא משתמש מחובר
+            flowOf(emptyList<PostItem>())
+                .map { MyPostsUiState(loading = false, items = it) }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MyPostsUiState())
+        } else {
+            repo.myPostsLocalFlow(uid)
+                .map { MyPostsUiState(loading = false, items = it) }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MyPostsUiState())
+        }
+
+    init {
+        // מפעיל סנכרון רק אם יש UID
+        uid?.let { u ->
+            syncReg = repo.startMyPostsSync(u)
+        }
+    }
+
+    override fun onCleared() {
+        syncReg?.remove()
+        super.onCleared()
+    }
 }

@@ -9,4 +9,12 @@
     <string name="auth_guest">המשך כאורח</string>
     <string name="logout">התנתקות</string>
     <string name="profile">פרופיל</string>
+    <string name="meal_breakfast">בוקר</string>
+    <string name="meal_lunch">צהריים</string>
+    <string name="meal_dinner">ערב</string>
+    <string-array name="meal_types">
+        <item>@string/meal_breakfast</item>
+        <item>@string/meal_lunch</item>
+        <item>@string/meal_dinner</item>
+    </string-array>
 </resources>

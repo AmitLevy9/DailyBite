@@ -13,10 +13,15 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import coil.load
+import com.example.dailybite.R
 import com.example.dailybite.databinding.FragmentEditPostBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class EditPostFragment : Fragment() {
@@ -25,6 +30,7 @@ class EditPostFragment : Fragment() {
     private var _binding: FragmentEditPostBinding? = null
     private val binding get() = _binding!!
     private val vm: EditPostViewModel by viewModels()
+    private val args: EditPostFragmentArgs by navArgs()
 
     private var newImageUri: Uri? = null
 
@@ -45,56 +51,70 @@ class EditPostFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val postId = requireArguments().getString("postId")!!
-        val imagePath = requireArguments().getString("imageStoragePath")!!
-        // טוענים את התמונה הקיימת מ־Storage
-        storage.reference.child(imagePath)
+        // טעינת תמונה קיימת
+        storage.reference.child(args.imageStoragePath)
             .downloadUrl
-            .addOnSuccessListener { uri ->
-                binding.imgPreview.load(uri)
-            }
-        val mealTypeArg = requireArguments().getString("mealType") ?: "נשנוש"
-        val descriptionArg = requireArguments().getString("description") ?: ""
+            .addOnSuccessListener { uri -> binding.imgPreview.load(uri) }
 
         // ספינר סוגי ארוחה
-        val meals = listOf("בוקר","צהריים","ערב","נשנוש")
+        val meals = resources.getStringArray(R.array.meal_types).toList().ifEmpty {
+            listOf("בוקר","צהריים","ערב","נשנוש")
+        }
         binding.spMealType.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, meals)
-        val idx = meals.indexOf(mealTypeArg).let { if (it >= 0) it else meals.lastIndex }
+
+        val idx = meals.indexOf(args.mealType).let { if (it >= 0) it else 0 }
         binding.spMealType.setSelection(idx)
 
-        // פרה־פילד של התיאור
-        binding.etDescription.setText(descriptionArg)
+        // תיאור קיים
+        binding.etDescription.setText(args.description)
 
-        // טעינת תמונה קיימת
-        // אם את משתמשת ב-Coil + Storage url, אפשר להביא כתובת הורדה כאן (אופציונלי).
-        // כדי לשמור את זה פשוט, נשאיר את התמונה ריקה אם אין לנו URI מוכן.
-
+        // החלפת תמונה
         binding.btnReplaceImage.setOnClickListener {
             picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
 
+        // שמירה
         binding.btnSave.setOnClickListener {
-            val meal = binding.spMealType.selectedItem?.toString() ?: mealTypeArg
+            val meal = binding.spMealType.selectedItem?.toString() ?: args.mealType
             val desc = binding.etDescription.text?.toString()?.trim().orEmpty()
             if (desc.isEmpty()) {
                 android.widget.Toast.makeText(requireContext(), "יש להזין תיאור", android.widget.Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val bytes = newImageUri?.let { uri ->
-                requireContext().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                binding.progress.isVisible = true
+                val bytes: ByteArray? = withContext(Dispatchers.IO) {
+                    newImageUri?.let { uri ->
+                        requireContext().contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    }
+                }
+                vm.save(
+                    postId = args.postId,
+                    mealType = meal,
+                    description = desc,
+                    imageStoragePath = args.imageStoragePath,
+                    newImageBytes = bytes
+                )
             }
-            vm.save(postId, meal, desc, imagePath, bytes)
         }
 
+        // תצפית על state
         viewLifecycleOwner.lifecycleScope.launchWhenStarted {
             vm.state.collectLatest { s ->
                 binding.progress.isVisible = s.loading
                 binding.btnSave.isEnabled = !s.loading
+                binding.btnReplaceImage.isEnabled = !s.loading
+                binding.spMealType.isEnabled = !s.loading
+                binding.etDescription.isEnabled = !s.loading
+
                 s.error?.let {
                     android.widget.Toast.makeText(requireContext(), it, android.widget.Toast.LENGTH_SHORT).show()
+                    // אם הוספת vm.consumeError() ב־VM, קראי לו כאן
                 }
                 if (s.success) {
                     android.widget.Toast.makeText(requireContext(), "נשמר בהצלחה", android.widget.Toast.LENGTH_SHORT).show()
+                    // אם הוספת vm.consumeSuccess() ב־VM, קראי לו כאן
                     findNavController().popBackStack()
                 }
             }

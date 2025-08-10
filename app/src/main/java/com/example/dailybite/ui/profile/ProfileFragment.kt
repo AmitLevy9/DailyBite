@@ -1,7 +1,5 @@
 package com.example.dailybite.ui.profile
 
-import android.app.Activity
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -9,43 +7,31 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
+import coil.load
 import com.example.dailybite.databinding.FragmentProfileBinding
-import com.example.dailybite.data.auth.AuthRepository
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
-import javax.inject.Inject
+import kotlinx.coroutines.flow.collectLatest
 
 @AndroidEntryPoint
 class ProfileFragment : Fragment() {
 
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
+    private val vm: ProfileViewModel by viewModels()
 
-    @Inject lateinit var authRepo: AuthRepository
-    @Inject lateinit var firestore: FirebaseFirestore
-    @Inject lateinit var storage: FirebaseStorage
-
-    private var selectedImageUri: Uri? = null
-
-    private val pickImageLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                selectedImageUri = result.data?.data
-                binding.ivProfile.setImageURI(selectedImageUri)
-            }
+    private var pickedImage: Uri? = null
+    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            pickedImage = uri
+            binding.ivAvatar.setImageURI(uri)
         }
+    }
 
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentProfileBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -53,68 +39,36 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val uid = authRepo.currentUidOrNull() ?: return
+        binding.btnPickImage.setOnClickListener { pickImage.launch("image/*") }
 
-        // טוען נתוני פרופיל
-        firestore.collection("users").document(uid).get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    binding.etName.setText(doc.getString("name") ?: "")
-                    val imagePath = doc.getString("profileImagePath") ?: ""
-                    if (imagePath.isNotEmpty()) {
-                        storage.reference.child(imagePath).downloadUrl
-                            .addOnSuccessListener { uri ->
-                                Glide.with(this).load(uri).into(binding.ivProfile)
-                            }
-                    }
+        binding.btnSave.setOnClickListener {
+            val name = binding.etName.text?.toString()?.trim().orEmpty()
+            if (name.isEmpty()) {
+                Toast.makeText(requireContext(), "נא להזין שם", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            vm.save(name, pickedImage)
+        }
+
+        viewLifecycleOwner.lifecycleScope.launchWhenStarted {
+            vm.state.collectLatest { s ->
+                binding.progress.isVisible = s.loading
+                binding.btnSave.isEnabled = !s.loading
+                binding.btnPickImage.isEnabled = !s.loading
+                binding.tilName.isEnabled = !s.loading
+
+                if (s.photoUrl != null && pickedImage == null) {
+                    binding.ivAvatar.load(s.photoUrl) { crossfade(true) }
+                }
+                if (binding.etName.text?.toString()?.trim().isNullOrEmpty() && s.name.isNotEmpty()) {
+                    binding.etName.setText(s.name)
+                }
+                s.error?.let {
+                    Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                    vm.consumeError()
                 }
             }
-
-        // בחירת תמונה
-        binding.ivProfile.setOnClickListener {
-            val intent = Intent(Intent.ACTION_PICK).apply {
-                type = "image/*"
-            }
-            pickImageLauncher.launch(intent)
         }
-
-        // שמירת שינויים
-        binding.btnSave.setOnClickListener {
-            lifecycleScope.launch {
-                saveProfile()
-            }
-        }
-    }
-
-    private suspend fun saveProfile() {
-        val uid = authRepo.currentUidOrNull() ?: return
-        val name = binding.etName.text.toString().trim()
-
-        var imagePath = ""
-
-        // העלאת תמונה אם נבחרה
-        selectedImageUri?.let { uri ->
-            imagePath = "profile_images/$uid.jpg"
-            storage.reference.child(imagePath)
-                .putFile(uri)
-                .await()
-        }
-
-        // עדכון ב-Firestore
-        val updates = mutableMapOf<String, Any>(
-            "name" to name
-        )
-        if (imagePath.isNotEmpty()) {
-            updates["profileImagePath"] = imagePath
-        }
-
-        firestore.collection("users").document(uid).update(updates)
-            .addOnSuccessListener {
-                Toast.makeText(requireContext(), "הפרופיל עודכן בהצלחה", Toast.LENGTH_SHORT).show()
-            }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "עדכון הפרופיל נכשל", Toast.LENGTH_SHORT).show()
-            }
     }
 
     override fun onDestroyView() {

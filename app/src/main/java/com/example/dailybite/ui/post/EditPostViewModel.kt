@@ -12,6 +12,7 @@ import javax.inject.Inject
 data class EditPostState(
     val loading: Boolean = false,
     val success: Boolean = false,
+    val deleted: Boolean = false,
     val error: String? = null
 )
 
@@ -22,6 +23,7 @@ class EditPostViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(EditPostState())
     val state: StateFlow<EditPostState> = _state
+
 
     fun save(
         postId: String,
@@ -37,6 +39,21 @@ class EditPostViewModel @Inject constructor(
                 EditPostState(success = true)
             } else {
                 EditPostState(error = res.exceptionOrNull()?.localizedMessage ?: "שגיאה בשמירת פוסט")
+            }
+        }
+    }
+
+    fun consumeSuccess() { _state.value = _state.value.copy(success = false) }
+    fun consumeError() { _state.value = _state.value.copy(error = null) }
+
+    fun delete(postId: String, imageStoragePath: String) {
+        _state.value = _state.value.copy(loading = true, error = null, deleted = false)
+        viewModelScope.launch {
+            val res = repo.deletePost(postId, imageStoragePath)
+            _state.value = if (res.isSuccess) {
+                _state.value.copy(loading = false, deleted = true)
+            } else {
+                _state.value.copy(loading = false, error = res.exceptionOrNull()?.localizedMessage ?: "שגיאה במחיקה")
             }
         }
     }
