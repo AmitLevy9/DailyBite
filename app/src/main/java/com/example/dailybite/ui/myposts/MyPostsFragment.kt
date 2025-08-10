@@ -82,6 +82,8 @@ class MyPostsFragment : Fragment() {
                     .show()
             }
         )
+
+
         binding.rvPosts.layoutManager = LinearLayoutManager(requireContext())
         binding.rvPosts.adapter = adapter
 
